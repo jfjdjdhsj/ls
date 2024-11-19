@@ -1,0 +1,11 @@
+{
+"name":"zijian", 
+"description":"图标按照服名或群名命名，按照A-Z排列，方便查找。Fileball可以在图标搜索框搜索图标名。", 
+"icons":
+    [
+	{"name":"yuyun", "url":"https://www.helloimg.com/i/2024/11/19/673c4cc08cb9d.jpg"},
+	{"name":"lin", "url":"https://www.helloimg.com/i/2024/11/19/673c4d4def957.jpg"},
+	{"name":"yeubing", "url":"https://www.helloimg.com/i/2024/11/19/673c4d94b6d21.jpg"},
+	{"name":"efu", "url":"https://www.helloimg.com/i/2024/11/19/673c4db29753e.jpg"}
+	]
+}
