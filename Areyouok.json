@@ -1,6 +1,6 @@
 { "urls": [{ "url": "http://www.饭太硬.com/tv", "name": "饭太硬" },
 
-{ "url": "https://tang.hz.cz/api/user?token=412e7d8f", "name": "唐山接口" },
+{ "url": "https://tang.hz.cz/api/user?token=412e7d8f", "name": "唐三接口" },
   
 { "url": "https://mpanso.me/DEMO.json", "name": "小米" },
 
