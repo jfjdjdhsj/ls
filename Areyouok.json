@@ -27,15 +27,6 @@
 { "url": "https://gh.aptv.app/https://raw.githubusercontent.com/xyq254245/xyqonlinerule/main/XYQTVBox.json", "name": "香雅情" },
 
 { "url": "http://kxrj.site:55/天天开心", "name": "天天开心" },
-  
-{
-      "key": "Cg51",
-      "name": "\uD83D\uDD1E 51吃瓜 | 图密√",
-      "type": 3,
-      "api": "csp_Cg51",
-      "searchable": 1,
-      "filterable": 1
-    },
 
 { "url": "https://100km.top/0", "name": "骚零" },
 
@@ -43,4 +34,8 @@
 
 { "url": "https://gitea.moe/Fathers/EkfkgH/raw/branch/main/短剧.json", "name": "短剧频道" },
 
-{ "url": "https://jihulab.com/ymz1231/xymz/-/raw/main/ymshaoer", "name": "少儿频道" }]}
+{ "url": "https://jihulab.com/ymz1231/xymz/-/raw/main/ymshaoer", "name": "少儿频道" },
+
+{ "url": "https://mirror.ghproxy.com/https://github.com/bizhangjie/CatVodSpider/blob/main/json/index18.json", "name": "🔞18➕" }]}
+
+
