@@ -1,3 +1,11 @@
-DOMAIN-KEYWORD,chatgpt,chatgpt
-DOMAIN-KEYWORD,openai,chatgpt
-PROCESS-NAME,com.openai.chatgpt,chatgpt
+DOMAIN-SUFFIX,chatboxai.app,🤖 OPenAI
+DOMAIN-SUFFIX,groq.com,🤖 OPenAI
+DOMAIN-SUFFIX,ai.com,🤖 OPenAI
+DOMAIN-SUFFIX,identrust.com,🤖 OPenAI
+DOMAIN-SUFFIX,openai.com,🤖 OPenAI
+DOMAIN,openaiapi-site.azureedge.net,🤖 OPenAI
+DOMAIN,challenges.cloudflare.com,🤖 OPenAI
+DOMAIN,cdn.auth0.com,🤖 OPenAI
+DOMAIN,bard.google.com,🤖 OPenAI
+DOMAIN,gemini.google.com,🤖 OPenAI
+PROCESS-NAME,com.openai.chatgpt,🤖 OPenAI
