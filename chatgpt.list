@@ -1,11 +1,11 @@
-DOMAIN-SUFFIX,chatboxai.app,🤖 OPenAI
-DOMAIN-SUFFIX,groq.com,🤖 OPenAI
-DOMAIN-SUFFIX,ai.com,🤖 OPenAI
-DOMAIN-SUFFIX,identrust.com,🤖 OPenAI
-DOMAIN-SUFFIX,openai.com,🤖 OPenAI
-DOMAIN,openaiapi-site.azureedge.net,🤖 OPenAI
-DOMAIN,challenges.cloudflare.com,🤖 OPenAI
-DOMAIN,cdn.auth0.com,🤖 OPenAI
-DOMAIN,bard.google.com,🤖 OPenAI
-DOMAIN,gemini.google.com,🤖 OPenAI
-PROCESS-NAME,com.openai.chatgpt,🤖 OPenAI
+DOMAIN-SUFFIX,chatboxai.app
+DOMAIN-SUFFIX,groq.com
+DOMAIN-SUFFIX,ai.com
+DOMAIN-SUFFIX,identrust.com
+DOMAIN-SUFFIX,openai.com
+DOMAIN,openaiapi-site.azureedge.net
+DOMAIN,challenges.cloudflare.com
+DOMAIN,cdn.auth0.com
+DOMAIN,bard.google.com
+DOMAIN,gemini.google.com
+PROCESS-NAME,com.openai.chatgpt
