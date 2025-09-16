@@ -1,61 +1,74 @@
 #!/bin/bash
+
 # =========================================================
-# 🌊 青龙面板 & open-webui 管理脚本
+# 青龙面板 + open-webui 管理脚本
 # =========================================================
 
 set -e
 
-# ===================== 配置 =====================
+# ---------------------------
+# 基本路径和版本
+# ---------------------------
 QL_DIR="/ql"
-QL_ENV="/root/ql_venv"
+QL_ENV="$HOME/myenv_ql"
 
 OPENWEB_DIR="$HOME/.venv_openwebui"
 OPENWEB_PY_VER="3.11.11"
 
-# ===================== 工具函数 =====================
+# ---------------------------
+# 分割线打印
+# ---------------------------
 print_line() {
     echo "====================================="
 }
 
+# ---------------------------
+# 检查是否在虚拟环境
+# ---------------------------
 check_venv_exit() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
-        echo "⚠️ 检测到当前在虚拟环境 ($VIRTUAL_ENV)，请先退出虚拟环境再运行脚本"
+        echo "⚠️ 检测到当前在虚拟环境 ($VIRTUAL_ENV)，请先退出虚拟环境再运行本脚本"
         echo "执行: deactivate"
         exit 1
     fi
 }
 
-# ===================== 青龙面板 =====================
+# =========================================================
+# 青龙面板函数
+# =========================================================
 install_ql() {
     print_line
     echo "🚀 开始安装青龙面板"
     print_line
 
-    # 安装依赖
-    apt update -y
-    apt install -y git python3 python3-pip python3-venv nodejs npm curl
+    # 安装 git
+    command -v git >/dev/null 2>&1 || { apt update -y; apt install -y git; }
 
-    # 克隆仓库
-    if [ ! -d "$QL_DIR" ]; then
-        git clone --depth=1 -b develop https://github.com/whyour/qinglong.git $QL_DIR
+    # 克隆青龙
+    [ ! -d "$QL_DIR" ] && git clone --depth=1 -b develop https://github.com/whyour/qinglong.git "$QL_DIR"
+
+    # 安装 Python + venv
+    apt install -y python3 python3-pip python3-venv
+    [ ! -d "$QL_ENV" ] && python3 -m venv "$QL_ENV"
+    source "$QL_ENV/bin/activate"
+
+    # 安装 Node.js
+    if ! command -v node >/dev/null || ! command -v npm >/dev/null; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt install -y nodejs
     fi
 
-    # 创建虚拟环境
-    if [ ! -d "$QL_ENV" ]; then
-        python3 -m venv $QL_ENV
-    fi
-    source $QL_ENV/bin/activate
-
-    # 安装 npm 包
     npm i -g pnpm@8.3.1 pm2 ts-node node-pre-gyp
-    cd $QL_DIR
+
+    # 安装青龙依赖
+    cd "$QL_DIR"
     pnpm install --prod
 
     # 拉取静态资源
     if [ ! -d "$QL_DIR/static" ]; then
         git clone --depth=1 -b develop https://github.com/whyour/qinglong-static.git /tmp/qinglong-static
-        mkdir -p $QL_DIR/static
-        cp -rf /tmp/qinglong-static/* $QL_DIR/static
+        mkdir -p "$QL_DIR/static"
+        cp -rf /tmp/qinglong-static/* "$QL_DIR/static"
         rm -rf /tmp/qinglong-static
     fi
 
@@ -64,37 +77,22 @@ install_ql() {
     print_line
 }
 
-uninstall_ql() {
-    print_line
-    read -p "⚠️ 是否卸载青龙面板及相关依赖? [y/n]：" yn
-    [[ "$yn" != [Yy]* ]] && return
-
-    print_line
-    echo "🗑️ 卸载青龙面板"
-    pm2 stop ql &>/dev/null || true
-    pm2 delete ql &>/dev/null || true
-    rm -rf $QL_DIR
-    rm -rf $QL_ENV
-    print_line
-    echo "✅ 青龙面板卸载完成"
-    print_line
-}
-
 start_ql() {
     print_line
-    echo "🚀 启动青龙面板..."
-    source $QL_ENV/bin/activate
-    $QL_DIR/docker/docker-entrypoint.sh &
-    echo "访问地址: http://127.0.0.1:5700"
+    echo "🚀 启动青龙面板"
     print_line
+    pkill -f "pm2" 2>/dev/null || true
+    source "$QL_ENV/bin/activate"
+    cd "$QL_DIR"
+    pm2 start npm --name qinglong -- run start
+    echo "青龙面板访问地址: http://127.0.0.1:5700"
 }
 
 stop_ql() {
     print_line
-    echo "🛑 停止青龙面板..."
-    pm2 stop ql &>/dev/null || true
-    pm2 delete ql &>/dev/null || true
+    echo "🛑 停止青龙面板"
     print_line
+    pm2 stop qinglong 2>/dev/null || true
 }
 
 restart_ql() {
@@ -102,7 +100,9 @@ restart_ql() {
     start_ql
 }
 
-# ===================== open-webui =====================
+# =========================================================
+# open-webui 函数
+# =========================================================
 install_openweb() {
     print_line
     echo "🚀 开始安装 open-webui"
@@ -110,28 +110,27 @@ install_openweb() {
 
     check_venv_exit
 
-    # 清理旧环境
     deactivate 2>/dev/null || true
     rm -rf "$OPENWEB_DIR"
     rm -rf ~/.cache/uv
 
-    # 安装 uv
     export PATH=$HOME/.local/bin:$PATH
-    if ! command -v uv &>/dev/null; then
+    if ! command -v uv >/dev/null; then
         echo "📦 安装 uv 工具..."
         pip install --user uv --break-system-packages
     fi
 
-    # 检查并安装 Python 3.11.11
+    # 安装 Python 指定版本
     if ! uv python list | grep -q "$OPENWEB_PY_VER"; then
         echo "🐍 安装 Python $OPENWEB_PY_VER via uv"
         uv python install $OPENWEB_PY_VER
     fi
 
-    uv v -p $OPENWEB_PY_VER --clear -d "$OPENWEB_DIR"
+    # 创建虚拟环境（修复 -d 参数问题）
+    uv v -p "$OPENWEB_PY_VER" --clear "$OPENWEB_DIR"
     source "$OPENWEB_DIR/bin/activate"
 
-    # 安装固定依赖
+    # 安装 open-webui
     uv pip install --no-cache-dir open-webui
 
     # 设置环境变量
@@ -143,41 +142,25 @@ install_openweb() {
     print_line
 }
 
-uninstall_openweb() {
-    print_line
-    read -p "⚠️ 是否卸载 open-webui 及相关依赖? [y/n]：" yn
-    [[ "$yn" != [Yy]* ]] && return
-
-    print_line
-    echo "🗑️ 卸载 open-webui..."
-    pkill -f "open-webui serve" 2>/dev/null || true
-    rm -rf "$OPENWEB_DIR"
-    rm -rf ~/.cache/uv
-    python3 -m pip uninstall -y uv || pip uninstall -y uv
-    print_line
-    echo "✅ open-webui 卸载完成"
-    print_line
-}
-
 start_openweb() {
     print_line
-    echo "🚀 启动 open-webui..."
-    check_venv_exit
-    source "$OPENWEB_DIR/bin/activate"
-    if pgrep -f "open-webui serve" &>/dev/null; then
-        echo "⚠️ open-webui 已在后台运行"
-    else
-        nohup open-webui serve > ~/openwebui.log 2>&1 &
-        echo "访问 open-webui 地址: http://127.0.0.1:8080"
-    fi
+    echo "🚀 启动 open-webui"
     print_line
+    source "$OPENWEB_DIR/bin/activate"
+    if pgrep -f "open-webui serve" >/dev/null; then
+        echo "open-webui 已在后台启动"
+    else
+        nohup open-webui serve >/dev/null 2>&1 &
+        sleep 3
+        echo "open-webui 访问地址: http://127.0.0.1:8080"
+    fi
 }
 
 stop_openweb() {
     print_line
-    echo "🛑 停止 open-webui..."
-    pkill -f "open-webui serve" 2>/dev/null || true
+    echo "🛑 停止 open-webui"
     print_line
+    pkill -f "open-webui serve" 2>/dev/null || true
 }
 
 restart_openweb() {
@@ -185,10 +168,11 @@ restart_openweb() {
     start_openweb
 }
 
-# ===================== 主菜单 =====================
-check_venv_exit
-
+# =========================================================
+# 菜单
+# =========================================================
 while true; do
+    print_line
     echo "🌊 请选择操作："
     echo "1️⃣  安装青龙面板"
     echo "2️⃣  卸载青龙面板"
@@ -208,18 +192,31 @@ while true; do
 
     case "$choice" in
         1) install_ql ;;
-        2) uninstall_ql ;;
+        2)
+            read -p "⚠️ 是否卸载青龙面板及依赖? [y/n]：" yn
+            [[ "$yn" == "y" ]] && { stop_ql; rm -rf "$QL_DIR" "$QL_ENV"; echo "青龙面板已卸载"; }
+            ;;
         3) start_ql ;;
         4) stop_ql ;;
         5) restart_ql ;;
         6) install_openweb ;;
-        7) uninstall_openweb ;;
+        7)
+            read -p "⚠️ 是否卸载 open-webui 及相关依赖? [y/n]：" yn
+            [[ "$yn" == "y" ]] && { stop_openweb; rm -rf "$OPENWEB_DIR" ~/.cache/uv; echo "open-webui 已卸载"; }
+            ;;
         8) start_openweb ;;
         9) stop_openweb ;;
-        10|🔟) restart_openweb ;;
-        11|1️⃣1️⃣) echo "⚠️ 青龙开机自启逻辑请自行实现" ;;
-        12|1️⃣2️⃣) echo "⚠️ open-webui开机自启逻辑请自行实现" ;;
-        13|1️⃣3️⃣) echo "👋 退出"; break ;;
+        10) restart_openweb ;;
+        11)
+            echo "⚙️ 设置青龙开机自启..."
+            grep -qxF "source $QL_ENV/bin/activate" ~/.bashrc || echo "source $QL_ENV/bin/activate && cd $QL_DIR && pm2 start npm --name qinglong -- run start" >> ~/.bashrc
+            ;;
+        12)
+            echo "⚙️ 设置 open-webui 开机自启..."
+            grep -qxF "source $OPENWEB_DIR/bin/activate && nohup open-webui serve >/dev/null 2>&1 &" ~/.bashrc || \
+            echo "source $OPENWEB_DIR/bin/activate && nohup open-webui serve >/dev/null 2>&1 &" >> ~/.bashrc
+            ;;
+        13) echo "退出脚本"; exit 0 ;;
         *) echo "❌ 无效选择" ;;
     esac
 done
