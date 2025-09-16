@@ -135,7 +135,8 @@ install_openweb() {
     uv python install 3.11.11
     export UV_LINK_MODE=copy
 
-    uv v -p 3.11.11 --clear -d "$OPENWEB_DIR"
+    # 修复 uv v 命令报错：直接把路径放最后面，不用 -d
+    uv v -p 3.11.11 --clear "$OPENWEB_DIR"
     source "$OPENWEB_DIR/bin/activate"
 
     apt update
