@@ -1,15 +1,20 @@
 #!/bin/bash
-
 # =========================================================
-# 青龙 + Open-WebUI 管理脚本
+# 青龙面板 + open-webui 管理脚本
 # =========================================================
 
 set -e
 
+# ---------------------------
+# 配置目录
+# ---------------------------
 QL_DIR="/ql"
-MYENV="$HOME/myenv_ql"
+MYENV="/root/myenv"
 OPENWEB_DIR="$HOME/.venv_openwebui"
 
+# ---------------------------
+# 打印分割线
+# ---------------------------
 print_line() {
     echo "====================================="
 }
@@ -19,52 +24,65 @@ print_line() {
 # ---------------------------
 check_venv_exit() {
     if [[ -n "$VIRTUAL_ENV" ]]; then
-        echo "⚠️ 当前在虚拟环境 ($VIRTUAL_ENV)，请先退出虚拟环境再运行脚本"
+        echo "⚠️ 检测到当前在虚拟环境 ($VIRTUAL_ENV)，请先退出虚拟环境"
         echo "执行: deactivate"
         exit 1
     fi
 }
 
-# =========================================================
-# 青龙面板功能
-# =========================================================
+# ============================
+# 青龙面板相关函数
+# ============================
+
 install_ql() {
     print_line
     echo "🚀 安装青龙面板"
     print_line
 
-    # 卸载选择
-    if [ -d "$QL_DIR" ]; then
-        read -p "⚠️ 青龙已存在，是否卸载重新安装? [y/n]：" yn
-        if [[ "$yn" == "y" ]]; then
-            uninstall_ql
-        fi
+    # 安装依赖
+    apt update
+    apt install -y git python3 python3-pip python3-venv nodejs npm pm2 nginx
+
+    # 克隆青龙面板
+    if [ ! -d "$QL_DIR" ]; then
+        git clone --depth=1 -b develop https://github.com/whyour/qinglong.git $QL_DIR
     fi
 
-    # 安装依赖
-    apt update && apt install -y git python3 python3-pip python3-venv nodejs npm nginx
-
     # 创建虚拟环境
-    python3 -m venv $MYENV
+    if [ ! -d "$MYENV" ]; then
+        python3 -m venv $MYENV
+    fi
+
     source $MYENV/bin/activate
 
-    # 安装 pnpm & pm2
-    npm i -g pnpm@8.3.1 pm2 ts-node
-
-    # 克隆青龙
-    git clone --depth=1 -b develop https://github.com/whyour/qinglong.git $QL_DIR || echo "青龙已存在"
-
-    # 安装依赖
+    # 安装青龙依赖
     cd $QL_DIR
+    npm i -g pnpm
     pnpm install --prod
 
-    # 拉取静态资源
-    git clone --depth=1 -b develop https://github.com/whyour/qinglong-static.git /tmp/qinglong-static
-    mkdir -p $QL_DIR/static
-    cp -rf /tmp/qinglong-static/* $QL_DIR/static
-    rm -rf /tmp/qinglong-static
+    # 后台启动
+    pm2 start $QL_DIR/docker/docker-entrypoint.sh --name qinglong --no-autorestart
 
-    # 启动
+    echo "✅ 青龙面板安装完成"
+    echo "访问地址: http://127.0.0.1:5700"
+}
+
+stop_ql() {
+    pm2 stop qinglong 2>/dev/null || true
+}
+
+start_ql() {
+    if pm2 list | grep -q qinglong; then
+        echo "青龙面板已在后台启动"
+    else
+        pm2 start $QL_DIR/docker/docker-entrypoint.sh --name qinglong --no-autorestart
+        echo "青龙面板已启动"
+    fi
+    echo "访问地址: http://127.0.0.1:5700"
+}
+
+restart_ql() {
+    stop_ql
     start_ql
 }
 
@@ -73,36 +91,31 @@ uninstall_ql() {
     echo "🗑️ 卸载青龙面板"
     print_line
 
-    pm2 stop qinglong 2>/dev/null || true
-    pm2 delete qinglong 2>/dev/null || true
-    rm -rf $QL_DIR
-    rm -rf $MYENV
+    read -p "⚠️ 是否卸载并重新安装青龙面板? [y/n]：" yn
+    if [[ "$yn" == "y" ]]; then
+        stop_ql
+        rm -rf "$QL_DIR" "$MYENV"
+        echo "✅ 青龙已卸载，开始重新安装..."
+        install_ql
+        return
+    fi
+
+    stop_ql
+    rm -rf "$QL_DIR" "$MYENV"
+
+    read -p "⚠️ 是否卸载青龙依赖? [y/n]：" yn
+    if [[ "$yn" == "y" ]]; then
+        apt remove -y git python3-venv nodejs npm pm2
+        echo "✅ 青龙依赖已卸载"
+    fi
+
     echo "✅ 青龙面板卸载完成"
 }
 
-start_ql() {
-    print_line
-    echo "▶️ 启动青龙面板"
-    print_line
-    source $MYENV/bin/activate
-    cd $QL_DIR
-    pm2 start npm --name qinglong -- start
-    echo "🌐 青龙面板地址: http://127.0.0.1:5700"
-}
+# ============================
+# open-webui 相关函数
+# ============================
 
-stop_ql() {
-    pm2 stop qinglong 2>/dev/null || echo "青龙未运行"
-    echo "🛑 青龙已停止"
-}
-
-restart_ql() {
-    stop_ql
-    start_ql
-}
-
-# =========================================================
-# Open-WebUI 功能
-# =========================================================
 install_openweb() {
     print_line
     echo "🚀 安装 open-webui"
@@ -110,64 +123,39 @@ install_openweb() {
 
     check_venv_exit
 
-    # 卸载选择
-    if [ -d "$OPENWEB_DIR" ]; then
-        read -p "⚠️ open-webui 已存在，是否卸载重新安装? [y/n]：" yn
-        if [[ "$yn" == "y" ]]; then
-            uninstall_openweb
-        fi
-    fi
-
     # 安装 uv
     export PATH=$HOME/.local/bin:$PATH
     if ! command -v uv &>/dev/null; then
         pip install --user uv --break-system-packages
     fi
 
-    # 安装 Python 3.11.11 并创建虚拟环境
+    # 安装 Python 3.11.11
     uv python install 3.11.11
     export UV_LINK_MODE=copy
+
+    # 创建虚拟环境
     uv v -p 3.11.11 --clear -d "$OPENWEB_DIR"
     source "$OPENWEB_DIR/bin/activate"
 
     # 安装 open-webui
     uv pip install --no-cache-dir open-webui
 
-    # 设置环境变量
-    export RAG_EMBEDDING_ENGINE=ollama
-    export AUDIO_STT_ENGINE=openai
-
-    echo "✅ open-webui 安装完成"
-}
-
-uninstall_openweb() {
-    print_line
-    echo "🗑️ 卸载 open-webui"
-    print_line
-
-    pkill -f "open-webui serve" 2>/dev/null || true
-    rm -rf "$OPENWEB_DIR"
-    echo "✅ open-webui 卸载完成"
-}
-
-start_openweb() {
-    print_line
-    echo "▶️ 启动 open-webui"
-    print_line
-
-    if [ ! -d "$OPENWEB_DIR" ]; then
-        echo "⚠️ open-webui 虚拟环境不存在，请先安装"
-        return
-    fi
-
-    source "$OPENWEB_DIR/bin/activate"
-    nohup open-webui serve >/dev/null 2>&1 &
-    echo "🌐 open-webui 地址: http://127.0.0.1:8080"
+    echo "🌟 open-webui 安装完成"
 }
 
 stop_openweb() {
-    pkill -f "open-webui serve" 2>/dev/null || echo "open-webui 未运行"
-    echo "🛑 open-webui 已停止"
+    pkill -f "open-webui serve" 2>/dev/null || true
+}
+
+start_openweb() {
+    if pgrep -f "open-webui serve" >/dev/null; then
+        echo "open-webui 已在后台启动"
+    else
+        source "$OPENWEB_DIR/bin/activate"
+        RAG_EMBEDDING_ENGINE=ollama AUDIO_STT_ENGINE=openai nohup open-webui serve >/dev/null 2>&1 &
+        echo "open-webui 已启动"
+    fi
+    echo "访问 open-webui 地址: http://127.0.0.1:8080"
 }
 
 restart_openweb() {
@@ -175,9 +163,38 @@ restart_openweb() {
     start_openweb
 }
 
-# =========================================================
-# 菜单
-# =========================================================
+uninstall_openweb() {
+    print_line
+    echo "🗑️ 卸载 open-webui"
+    print_line
+
+    read -p "⚠️ 是否卸载并重新安装 open-webui? [y/n]：" yn
+    if [[ "$yn" == "y" ]]; then
+        stop_openweb
+        rm -rf "$OPENWEB_DIR"
+        echo "✅ open-webui 已卸载，开始重新安装..."
+        install_openweb
+        return
+    fi
+
+    stop_openweb
+    rm -rf "$OPENWEB_DIR"
+
+    read -p "⚠️ 是否卸载 open-webui 依赖? [y/n]：" yn
+    if [[ "$yn" == "y" ]]; then
+        uv v -p 3.11.11 --clear
+        echo "✅ open-webui 依赖已卸载"
+    fi
+
+    echo "✅ open-webui 卸载完成"
+}
+
+# ============================
+# 主菜单
+# ============================
+
+check_venv_exit
+
 while true; do
     print_line
     echo "🌊 请选择操作："
@@ -195,8 +212,8 @@ while true; do
     echo "1️⃣2️⃣ 设置 open-webui 开机自启"
     echo "1️⃣3️⃣ 退出"
     print_line
-    read -p "请输入操作数字 [1-13]：" choice
 
+    read -p "请输入操作数字 [1-13]：" choice
     case "$choice" in
         1) install_ql ;;
         2) uninstall_ql ;;
@@ -208,9 +225,9 @@ while true; do
         8) start_openweb ;;
         9) stop_openweb ;;
         10) restart_openweb ;;
-        11) echo "⚠️ 功能待实现" ;;
-        12) echo "⚠️ 功能待实现" ;;
-        13) exit 0 ;;
+        11) echo "⚙️ 青龙面板开机自启未实现" ;;
+        12) echo "⚙️ open-webui 开机自启未实现" ;;
+        13) echo "退出"; exit 0 ;;
         *) echo "❌ 无效选择" ;;
     esac
 done
